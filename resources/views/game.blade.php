@@ -34,13 +34,21 @@
                 <option value="hard">Hard</option>
             </select>
         </label>
-        <button id="new-game" class="btn">New game</button>
+        <div class="btn-row">
+            <button id="new-game" class="btn">New game</button>
+            <button id="hint" class="btn ghost" type="button" title="Show a suggested move">💡 Hint</button>
+        </div>
+        <div id="hint-text" class="hint-box" hidden></div>
         <dl class="stats">
             <dt>Moves</dt><dd id="moves">0</dd>
             <dt>Red pieces</dt><dd id="red-count">12</dd>
             <dt>Black pieces</dt><dd id="black-count">12</dd>
         </dl>
-        <p class="muted small">Captures are mandatory. Reach the far row to crown a king.</p>
+        <div class="tip-box">
+            <strong>Tip:</strong> <span id="tip"></span>
+            <button id="next-tip" type="button" class="link small">Next tip →</button>
+        </div>
+        <p class="muted small">New to checkers? <a href="{{ route('how-to-play') }}">Learn how to play</a></p>
         @auth
             <p class="note">Games vs the computer are saved to your scores.</p>
         @else

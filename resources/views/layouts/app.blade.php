@@ -15,8 +15,10 @@
     <label for="nav-toggle" class="nav-burger" aria-hidden="true">☰</label>
     <nav class="mainnav">
         <a href="{{ route('home') }}" @class(['active' => request()->routeIs('home')])>Play</a>
+        <a href="{{ route('how-to-play') }}" @class(['active' => request()->routeIs('how-to-play')])>How to play</a>
         <a href="{{ route('leaderboard') }}" @class(['active' => request()->routeIs('leaderboard')])>Leaderboard</a>
         <a href="{{ route('pricing') }}" @class(['active' => request()->routeIs('pricing')])>Pricing</a>
+        <a href="https://nikniq.com" target="_blank" rel="noopener">Nikniq ↗</a>
         @auth
             <a href="{{ route('scores') }}" @class(['active' => request()->routeIs('scores')])>My scores</a>
             @if (auth()->user()->is_admin)
@@ -41,10 +43,12 @@
         <div>
             <a href="{{ route('home') }}" class="brand">● NQ Checkers</a>
             <p class="muted small">Classic checkers against a smart computer opponent. Free to play, no download.</p>
+            <p class="small">A <a href="https://nikniq.com" target="_blank" rel="noopener">Nikniq</a> product.</p>
         </div>
         <nav>
             <strong>Play</strong>
             <a href="{{ route('home') }}">Play now</a>
+            <a href="{{ route('how-to-play') }}">How to play</a>
             <a href="{{ route('leaderboard') }}">Leaderboard</a>
             <a href="{{ route('pricing') }}">Pricing</a>
         </nav>
@@ -60,10 +64,11 @@
         <nav>
             <strong>Legal</strong>
             <a href="{{ route('privacy') }}">Privacy</a>
+            <a href="https://nikniq.com" target="_blank" rel="noopener">nikniq.com ↗</a>
             <a href="{{ route('terms') }}">Terms</a>
         </nav>
     </div>
-    <p class="muted small footer-copy">© {{ date('Y') }} NQ Checkers. All rights reserved.</p>
+    <p class="muted small footer-copy">© {{ date('Y') }} NQ Checkers by <a href="https://nikniq.com" target="_blank" rel="noopener">Nikniq</a>. All rights reserved.</p>
 </footer>
 @stack('scripts')
 </body>

@@ -52,4 +52,10 @@ class CheckersTest extends TestCase
     {
         $this->assertSame(base_path('public_html'), public_path());
     }
+
+    public function test_how_to_play_page_and_hint_button(): void
+    {
+        $this->get('/how-to-play')->assertOk()->assertSee('Captures are mandatory');
+        $this->get('/')->assertOk()->assertSee('id="hint"', false)->assertSee('How to play');
+    }
 }

@@ -10,7 +10,7 @@
     const $ = (id) => document.getElementById(id);
     const boardEl = $('board');
 
-    let state, selected, partial, legal, busy, startedAt, finished;
+    let state, selected, partial, legal, busy, startedAt, finished, hint;
 
     // ---------- Rules engine (pure functions on a board array) ----------
 
@@ -156,7 +156,7 @@
 
     function newGame() {
         state = { board: initialBoard(), turn: RED, redMoves: 0, plies: 0, quietPlies: 0 };
-        selected = null; partial = null; busy = false; finished = false;
+        selected = null; partial = null; busy = false; finished = false; hint = null;
         startedAt = Date.now();
         $('result').hidden = true;
         $('mode').disabled = false; $('difficulty').disabled = false;
@@ -198,6 +198,7 @@
                 sq.dataset.r = r; sq.dataset.c = c;
                 const key = `${r},${c}`;
                 if (targets.has(key)) sq.classList.add('target');
+                if (hint && hint.path.some(([x, y]) => x === r && y === c)) sq.classList.add(hint.path[0][0] === r && hint.path[0][1] === c ? 'hint-from' : 'hint');
                 if (partial && partial.some(([x, y]) => x === r && y === c)) sq.classList.add('trail');
                 const p = state.board[r][c];
                 if (p) {
@@ -249,7 +250,7 @@
         state.quietPlies = move.captures.length || promoted ? 0 : state.quietPlies + 1;
         state.board = board;
         state.turn = opponent(state.turn);
-        selected = null; partial = null;
+        selected = null; partial = null; hint = null; $('hint-text').hidden = true;
         $('mode').disabled = true; $('difficulty').disabled = true;
         refresh();
         if (checkEnd()) return;
@@ -324,6 +325,47 @@
             showResult($('result').innerHTML + '<br><small>Could not save score.</small>');
         }
     }
+
+    // ---------- Hints ----------
+
+    const sqName = ([r, c]) => 'abcdefgh'[c] + (8 - r);
+
+    function showHint() {
+        const out = $('hint-text');
+        if (finished || busy || (mode() === 'ai' && state.turn !== RED) || !legal.length) return;
+        const move = chooseAiMove(state.board, state.turn, 'medium');
+        hint = move;
+        const { promoted } = applyMove(state.board, move);
+        const route = move.path.map(sqName).join(' → ');
+        let why;
+        if (move.captures.length > 1) why = `Multi-jump! You capture ${move.captures.length} pieces in one turn.`;
+        else if (move.captures.length) why = 'A capture is available, and captures are mandatory. This is the best one.';
+        else if (promoted) why = 'This move reaches the far row and crowns a king.';
+        else {
+            const after = applyMove(state.board, move).board;
+            const threatened = legalMoves(after, opponent(state.turn)).some((m) => m.captures.length);
+            why = threatened ? 'Every move leaves something exposed. This one limits the damage.' : 'A safe move: the opponent cannot capture anything afterwards.';
+        }
+        out.innerHTML = `<strong>Hint:</strong> ${route}<br><span class="muted">${why}</span>`;
+        out.hidden = false;
+        render();
+    }
+
+    const TIPS = [
+        'Keep your back row filled as long as you can, so the opponent struggles to crown kings.',
+        'Control the centre squares. Pieces there have more options.',
+        'Move pieces in pairs. A piece with a friend behind it can\'t be jumped.',
+        'Pieces on the side edges can\'t be captured, but they also have fewer moves.',
+        'Captures are mandatory. Use this to force your opponent into a bad jump.',
+        'Trade pieces when you\'re ahead. Avoid trades when you\'re behind.',
+        'Kings move backwards too. Crowning one early is a big advantage.',
+        'Before each move, check which squares your opponent could jump to next.',
+    ];
+    let tipIdx = Math.floor(Math.random() * TIPS.length);
+    function nextTip() { tipIdx = (tipIdx + 1) % TIPS.length; $('tip').textContent = TIPS[tipIdx]; }
+    $('tip').textContent = TIPS[tipIdx];
+    $('next-tip').addEventListener('click', nextTip);
+    $('hint').addEventListener('click', showHint);
 
     boardEl.addEventListener('click', onBoardClick);
     $('new-game').addEventListener('click', newGame);
