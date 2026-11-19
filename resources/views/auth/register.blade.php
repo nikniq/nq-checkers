@@ -2,7 +2,9 @@
 @section('title', 'Register · Checkers')
 @section('content')
 <div class="card narrow">
-    <h1>Create account</h1>
+    <h1>Create your free account</h1>
+    <p class="muted">Save every game, track your win rate and compete on the leaderboard. Takes 10 seconds.</p>
+    @include('partials.oauth')
     <form method="POST" action="{{ route('register') }}">
         @csrf
         <label>Display name <input type="text" name="name" value="{{ old('name') }}" required maxlength="50" autofocus></label>
@@ -12,7 +14,7 @@
         @if ($errors->any())
             <div class="error">@foreach ($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
         @endif
-        <button class="btn" type="submit">Register</button>
+        <button class="btn" type="submit">Create free account</button>
     </form>
     <p class="muted">Already registered? <a href="{{ route('login') }}">Log in</a></p>
 </div>

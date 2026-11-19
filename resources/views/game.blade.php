@@ -1,5 +1,20 @@
 @extends('layouts.app')
 @section('content')
+@guest
+<section class="hero">
+    <div>
+        <h1>Play checkers free. Beat the computer. Climb the leaderboard.</h1>
+        <p class="lead">Three difficulty levels, a two-player mode and saved stats for every game. No download needed. Your first move is just below.</p>
+        <div class="hero-cta">
+            <a href="{{ route('register') }}" class="btn big">Create free account</a>
+            <a href="#board" class="btn ghost big">Play as guest</a>
+        </div>
+        <ul class="proof">
+            <li>✓ Free forever</li><li>✓ Sign in with Google in one click</li><li>✓ Works on phone and desktop</li>
+        </ul>
+    </div>
+</section>
+@endguest
 <div class="game-layout">
     <section class="board-wrap">
         <div id="board" class="board" aria-label="Checkers board"></div>
@@ -29,9 +44,12 @@
         @auth
             <p class="note">Games vs the computer are saved to your scores.</p>
         @else
-            <p class="note">Playing as guest. <a href="{{ route('login') }}">Log in</a> or <a href="{{ route('register') }}">register</a> to save your scores.</p>
+            <p class="note">Playing as guest. Your wins aren't being saved yet. <a href="{{ route('register') }}"><strong>Sign up free</strong></a> to keep your scores and get on the leaderboard.</p>
         @endauth
         <div id="result" class="result" hidden></div>
+        @guest
+            <a href="{{ route('register') }}" class="btn ghost upsell">Save this result: sign up free</a>
+        @endguest
     </aside>
 </div>
 @endsection
