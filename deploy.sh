@@ -84,8 +84,11 @@ REPO=$(git remote get-url origin)
 remote() {  # run a bash script (stdin) on the server
   local script; script=$(cat)
   if [ $DRY -eq 1 ]; then echo "${B}# target: $TARGET${N}"; echo "$script"; return 0; fi
-  if [ $LOCAL -eq 1 ]; then bash -s <<<"set -euo pipefail; $script"; return; fi
-  ssh -p "$PORT" "$DEPLOY_HOST" "bash -s" <<<"set -euo pipefail; $script"
+  # Wrap in { } </dev/null: bash parses the whole block before running it, and
+  # commands inside (composer, artisan) can't swallow the rest of the script from stdin.
+  local wrapped=$'set -euo pipefail\n{\n'"$script"$'\n} </dev/null'
+  if [ $LOCAL -eq 1 ]; then bash -s <<<"$wrapped"; return; fi
+  ssh -p "$PORT" "$DEPLOY_HOST" "bash -s" <<<"$wrapped"
 }
 
 # Build assets locally and copy them up when the server can't build them itself.
@@ -138,7 +141,7 @@ case "$CMD" in
     info "Deploying ${B}$(git rev-parse --short "origin/$BRANCH")${N} to $TARGET"
     remote <<SCRIPT
 cd "$DEPLOY_PATH"
-export PHP="$RPHP" COMPOSER="$RCOMPOSER" NPM="$RNPM" YES=1
+export PHP="$RPHP" COMPOSER_BIN="$RCOMPOSER" NPM="$RNPM" YES=1
 step() { echo "  · \$*"; }
 prev=\$(git rev-parse HEAD)
 echo "\$prev" > .deploy_previous
@@ -155,7 +158,7 @@ trap '\$PHP artisan up >/dev/null; echo "  · Maintenance mode off"' EXIT
 revert() {
   echo "✗ \$1 — reverting code to \${prev:0:7}"
   git reset -q --hard "\$prev"
-  \$COMPOSER install --no-dev --optimize-autoloader --no-interaction --quiet || true
+  \$COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction --quiet || true
   if [ -d public_html/build.old ]; then rm -rf public_html/build; mv public_html/build.old public_html/build; fi
   \$PHP artisan optimize >/dev/null 2>&1 || true
   exit 1
@@ -164,7 +167,7 @@ revert() {
 step "Updating code \${prev:0:7} → \${new:0:7}"
 git reset -q --hard "\$new"
 step "Installing dependencies"
-\$COMPOSER install --no-dev --optimize-autoloader --no-interaction --quiet || revert "composer install failed"
+\$COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction --quiet || revert "composer install failed"
 \$PHP artisan optimize:clear >/dev/null || true
 if grep -q '^DB_CONNECTION=sqlite' .env; then [ -f database/database.sqlite ] || touch database/database.sqlite; fi
 ./cx.sh perms >/dev/null
@@ -217,8 +220,8 @@ SCRIPT
     remote <<SCRIPT
 if [ ! -d "$DEPLOY_PATH/.git" ]; then git clone -q -b "$BRANCH" "$REPO" "$DEPLOY_PATH"; fi
 cd "$DEPLOY_PATH"
-export PHP="$RPHP" COMPOSER="$RCOMPOSER" NPM="$RNPM" YES=1
-\$COMPOSER install --no-dev --optimize-autoloader --no-interaction --quiet
+export PHP="$RPHP" COMPOSER_BIN="$RCOMPOSER" NPM="$RNPM" YES=1
+\$COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction --quiet
 if [ ! -f .env ]; then cp .env.example .env; \$PHP artisan key:generate --force; fi
 ./cx.sh env:prod
 if grep -q '^DB_CONNECTION=sqlite' .env; then [ -f database/database.sqlite ] || touch database/database.sqlite; fi
@@ -274,7 +277,7 @@ SCRIPT
 
   cx|check|backup|doctor)
             [ "$CMD" = cx ] || set -- "$CMD" "$@"
-            remote <<<"cd \"$DEPLOY_PATH\" && PHP=$RPHP COMPOSER=$RCOMPOSER NPM=$RNPM ./cx.sh $(printf '%q ' "$@")" ;;
+            remote <<<"cd \"$DEPLOY_PATH\" && PHP=$RPHP COMPOSER_BIN=$RCOMPOSER NPM=$RNPM ./cx.sh $(printf '%q ' "$@")" ;;
   artisan)  remote <<<"cd \"$DEPLOY_PATH\" && $RPHP artisan $(printf '%q ' "$@")" ;;
 
   *) die "Unknown command: $CMD (deploy|init|migrate|rollback|status|logs|ssh|artisan|cx|check|doctor|backup)" ;;

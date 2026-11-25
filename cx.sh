@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PHP=${PHP:-php}
-COMPOSER=${COMPOSER:-composer}
+COMPOSER_BIN=${COMPOSER_BIN:-composer}
 NPM=${NPM:-npm}
 BACKUP_DIR=${BACKUP_DIR:-storage/backups}
 BACKUP_KEEP=${BACKUP_KEEP:-10}
@@ -87,7 +87,7 @@ case "$cmd" in
   setup)
     [ -f .env ] || { cp .env.example .env; ok "Created .env"; }
     info "Installing PHP dependencies"
-    if [ "$(envval APP_ENV)" = production ]; then $COMPOSER install --no-dev --optimize-autoloader --no-interaction; else $COMPOSER install --no-interaction; fi
+    if [ "$(envval APP_ENV)" = production ]; then $COMPOSER_BIN install --no-dev --optimize-autoloader --no-interaction; else $COMPOSER_BIN install --no-interaction; fi
     [ -n "$(envval APP_KEY)" ] || art key:generate --force
     if [ "$(DB_DRIVER)" = sqlite ]; then db=$(sqlite_path); [ -f "$db" ] || { touch "$db"; ok "Created $db"; }; fi
     db_ping || die "Cannot connect to the $(DB_DRIVER) database — check DB_* in .env"
