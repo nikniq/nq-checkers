@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\NikniqController;
 use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\GameController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
 
     Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])->whereIn('provider', SocialAuthController::PROVIDERS)->name('oauth.redirect');
+    Route::get('/auth/nikniq', [NikniqController::class, 'redirect'])->name('auth.nikniq');
+    Route::get('/auth/nikniq/callback', [NikniqController::class, 'callback'])->middleware('throttle:20,1')->name('auth.nikniq.callback');
+    Route::get('/auth/callback', [NikniqController::class, 'callback'])->middleware('throttle:20,1')->name('auth.callback');
     Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->whereIn('provider', SocialAuthController::PROVIDERS)->middleware('throttle:20,1')->name('oauth.callback');
 });
 

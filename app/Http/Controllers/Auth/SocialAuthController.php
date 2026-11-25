@@ -13,7 +13,7 @@ use Throwable;
 
 class SocialAuthController extends Controller
 {
-    public const PROVIDERS = ['google', 'nikniq'];
+    public const PROVIDERS = ['google'];
 
     public function redirect(string $provider): SymfonyRedirect
     {

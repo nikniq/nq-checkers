@@ -128,7 +128,7 @@ case "$cmd" in
       warn "APP_ENV=$(envval APP_ENV) (not production)"
     fi
     check "Google sign-in configured" "[ -n \"$(envval GOOGLE_CLIENT_ID)\" ] && [ -n \"$(envval GOOGLE_CLIENT_SECRET)\" ]" "button hidden (see ./cx.sh oauth)"
-    check "nikniq.com sign-in configured" "[ -n \"$(envval NIKNIQ_CLIENT_ID)\" ] && [ -n \"$(envval NIKNIQ_CLIENT_SECRET)\" ]" "button hidden (see ./cx.sh oauth)"
+    check "nikniq.com sign-in configured" "[ -n \"$(envval NIKNIQ_CLIENT_ID)\" ]" "button hidden (see ./cx.sh oauth)"
     [ $fail -eq 0 ] || die "Checks failed"
     [ $warns -eq 0 ] && ok "All checks passed" || ok "Passed with warnings"
     ;;
@@ -144,12 +144,13 @@ ${B}Google${N}  (https://console.cloud.google.com/apis/credentials)
   4. ./cx.sh env:set GOOGLE_CLIENT_ID …   and   ./cx.sh env:set GOOGLE_CLIENT_SECRET …
   Current: client id ${D}$(st GOOGLE_CLIENT_ID)${N}, secret ${D}$(st GOOGLE_CLIENT_SECRET)${N}
 
-${B}nikniq.com${N}  ($(u=$(envval NIKNIQ_BASE_URL); echo "${u:-https://nikniq.com}"))
-  1. On nikniq.com register an OAuth client for Checkers and copy its id + secret
-  2. Allowed redirect URI (exact match):  ${G}${url}/auth/nikniq/callback${N}
-  3. ./cx.sh env:set NIKNIQ_CLIENT_ID …   and   ./cx.sh env:set NIKNIQ_CLIENT_SECRET …
-  4. Only if nikniq.com isn't Passport-style: NIKNIQ_AUTHORIZE_PATH / NIKNIQ_TOKEN_PATH / NIKNIQ_USER_PATH
-  Current: client id ${D}$(st NIKNIQ_CLIENT_ID)${N}, secret ${D}$(st NIKNIQ_CLIENT_SECRET)${N}
+${B}nikniq.com${N}  ($(u=$(envval NIKNIQ_URL); echo "${u:-https://nikniq.com}"))  ${D}PKCE: client id only, no secret needed${N}
+  1. On nikniq.com open /admin/games → Checkers and copy its client id
+  2. Add to "Allowed redirect URIs" (exact match):  ${G}${url}/auth/nikniq/callback${N}
+  3. ./cx.sh env:set NIKNIQ_CLIENT_ID …
+     ./cx.sh env:set NIKNIQ_REDIRECT_URI ${url}/auth/nikniq/callback
+  Current: client id ${D}$(st NIKNIQ_CLIENT_ID)${N}, redirect ${D}$(envval NIKNIQ_REDIRECT_URI)${N}
+  Guests already logged in on nikniq.com are signed in here automatically.
 
 Then: ./cx.sh optimize
 O

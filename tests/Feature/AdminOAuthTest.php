@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialUser;
 use Tests\TestCase;
@@ -60,12 +61,27 @@ class AdminOAuthTest extends TestCase
     {
         config(['services.nikniq.client_id' => 'x']);
         $user = User::factory()->create(['email' => 'nik@example.com']);
-        $social = (new SocialUser)->map(['id' => 42, 'name' => 'Nik', 'email' => 'nik@example.com', 'avatar' => null]);
-        Socialite::shouldReceive('driver->user')->andReturn($social);
+        Http::fake(['nikniq.com/api/sso/token' => Http::response(['player' => ['id' => 42, 'name' => 'Nik', 'email' => 'nik@example.com']])]);
 
-        $this->get('/auth/nikniq/callback')->assertRedirect('/');
+        $this->withSession(['nikniq_state' => 'st', 'nikniq_verifier' => 'v'])
+            ->get('/auth/nikniq/callback?state=st&code=abc')->assertRedirect('/');
         $this->assertAuthenticatedAs($user);
         $this->assertSame('42', (string) $user->fresh()->nikniq_id);
+        Http::assertSent(fn ($r) => $r['code_verifier'] === 'v' && $r['code'] === 'abc');
+    }
+
+    public function test_nikniq_callback_rejects_bad_state(): void
+    {
+        config(['services.nikniq.client_id' => 'x']);
+        $this->withSession(['nikniq_state' => 'st'])->get('/auth/nikniq/callback?state=bad&code=abc')->assertRedirect('/login');
+        $this->assertGuest();
+    }
+
+    public function test_guest_is_silently_checked_against_nikniq_once(): void
+    {
+        config(['services.nikniq.client_id' => 'x']);
+        $this->get('/leaderboard')->assertRedirect(route('auth.nikniq', ['silent' => 1]));
+        $this->get('/leaderboard')->assertOk();
     }
 
     public function test_pricing_and_footer_render(): void

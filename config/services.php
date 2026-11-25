@@ -42,13 +42,10 @@ return [
     ],
 
     'nikniq' => [
+        'url' => env('NIKNIQ_URL', 'https://nikniq.com'),
         'client_id' => env('NIKNIQ_CLIENT_ID'),
         'client_secret' => env('NIKNIQ_CLIENT_SECRET'),
-        'redirect' => env('NIKNIQ_REDIRECT_URI', '/auth/nikniq/callback'),
-        'base_url' => env('NIKNIQ_BASE_URL', 'https://nikniq.com'),
-        'authorize_path' => env('NIKNIQ_AUTHORIZE_PATH', '/oauth/authorize'),
-        'token_path' => env('NIKNIQ_TOKEN_PATH', '/oauth/token'),
-        'user_path' => env('NIKNIQ_USER_PATH', '/api/user'),
+        'redirect' => env('NIKNIQ_REDIRECT_URI', rtrim((string) env('APP_URL', ''), '/').'/auth/nikniq/callback'),
     ],
 
 ];

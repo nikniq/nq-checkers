@@ -18,16 +18,17 @@ class OAuthRedirectTest extends TestCase
     public function test_nikniq_redirect_points_to_nikniq(): void
     {
         config(['services.nikniq.client_id' => 'nid', 'services.nikniq.client_secret' => 's']);
-        $url = $this->get('/auth/nikniq/redirect')->assertRedirect()->headers->get('Location');
-        $this->assertStringStartsWith('https://nikniq.com/oauth/authorize', $url);
+        $url = $this->get('/auth/nikniq')->assertRedirect()->headers->get('Location');
+        $this->assertStringStartsWith('https://nikniq.com/sso/authorize?', $url);
         $this->assertStringContainsString('client_id=nid', $url);
-        $this->assertStringContainsString(urlencode(url('/auth/nikniq/callback')), $url);
+        $this->assertStringContainsString('code_challenge_method=S256', $url);
+        $this->assertStringContainsString(urlencode('/auth/nikniq/callback'), $url);
     }
 
     public function test_login_shows_both_buttons_when_configured(): void
     {
         config(['services.google.client_id' => 'g', 'services.nikniq.client_id' => 'n']);
-        $this->get('/login')->assertSee('Continue with Google')->assertSee('Continue with Nikniq');
+        $this->get('/login')->assertSee('Continue with Google')->assertSee('Continue with nikniq.com');
     }
 
     public function test_footer_links_to_nikniq(): void
