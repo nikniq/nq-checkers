@@ -36,7 +36,11 @@
         </label>
         <div class="btn-row">
             <button id="new-game" class="btn">New game</button>
-            <button id="hint" class="btn ghost" type="button" title="Show a suggested move">💡 Hint</button>
+            <button id="hint" class="btn ghost" type="button" title="Show a suggested move (H)">💡 Hint</button>
+        </div>
+        <div class="btn-row tools">
+            <button id="undo" class="btn ghost" type="button" title="Take back your last move (U or Ctrl+Z)" disabled>↶ Undo</button>
+            <button id="sound" class="btn ghost" type="button" title="Sound on/off" aria-label="Toggle sound">🔊</button>
         </div>
         <div id="hint-text" class="hint-box" hidden></div>
         <dl class="stats">
@@ -44,6 +48,11 @@
             <dt>Red pieces</dt><dd id="red-count">12</dd>
             <dt>Black pieces</dt><dd id="black-count">12</dd>
         </dl>
+        <details class="history-box" open>
+            <summary>Move history</summary>
+            <ol id="history" class="history"></ol>
+        </details>
+        <p class="muted small">Undo is fine for practice, but a game where you used it isn't saved to your scores.</p>
         <div class="tip-box">
             <strong>Tip:</strong> <span id="tip"></span>
             <button id="next-tip" type="button" class="link small">Next tip →</button>

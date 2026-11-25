@@ -184,3 +184,14 @@ button.link.danger { color: var(--accent); }
 }
 .sq.light[data-file]::after { color: #6d4428; }
 .result[hidden] + .upsell { display: none; }
+
+/* Tools, history */
+.btn-row.tools { margin-top: .5rem; }
+.btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+.history-box { margin-top: 1rem; font-size: .88rem; }
+.history-box summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.history { max-height: 160px; overflow-y: auto; margin: .5rem 0 0; padding: 0 0 0 2.2em; font-variant-numeric: tabular-nums; }
+.history li { padding: .1rem 0; }
+.history li span { display: inline-block; min-width: 6.5em; }
+.history li span:first-child { color: #c62828; } .history li span:last-child { color: var(--fg); }
+.history:empty::before { content: "No moves yet"; color: var(--muted); margin-left: -2.2em; }

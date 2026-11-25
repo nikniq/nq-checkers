@@ -11,6 +11,13 @@
     const boardEl = $('board');
 
     let state, selected, partial, legal, busy, startedAt, finished, hint, last, animate;
+    let undoStack = [];
+    const STORE = 'nq-checkers.game.v1';
+    const store = {
+        get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+        set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+        del(k) { try { localStorage.removeItem(k); } catch {} },
+    };
 
     // ---------- Rules engine (pure functions on a board array) ----------
 
@@ -155,18 +162,99 @@
     const colorName = (c) => (c === RED ? 'Red' : 'Black');
 
     function newGame() {
-        state = { board: initialBoard(), turn: RED, redMoves: 0, plies: 0, quietPlies: 0 };
+        state = { board: initialBoard(), turn: RED, redMoves: 0, plies: 0, quietPlies: 0, log: [], undone: false };
         selected = null; partial = null; busy = false; finished = false; hint = null; last = null; animate = false;
+        undoStack = [];
         startedAt = Date.now();
+        store.del(STORE);
+        $('hint-text').hidden = true;
         $('result').hidden = true;
         $('mode').disabled = false; $('difficulty').disabled = false;
         refresh();
     }
 
+    // ---------- Undo, history, persistence ----------
+
+    const snapshot = () => JSON.parse(JSON.stringify({ state, last }));
+
+    function undo() {
+        if (busy || finished || !undoStack.length) return;
+        const snap = undoStack.pop();
+        state = snap.state; last = snap.last;
+        state.undone = true;
+        selected = null; partial = null; hint = null;
+        $('hint-text').hidden = true;
+        sound('undo');
+        refresh(); persist();
+    }
+
+    function persist() {
+        if (finished) return store.del(STORE);
+        store.set(STORE, { state, last, undoStack: undoStack.slice(-20), mode: mode(), difficulty: difficulty(), elapsed: Date.now() - startedAt });
+    }
+
+    function restore() {
+        const saved = store.get(STORE);
+        if (!saved || !saved.state || !saved.state.board || !saved.state.plies) return false;
+        state = { log: [], undone: false, ...saved.state };
+        last = saved.last; animate = false;
+        selected = null; partial = null; busy = false; finished = false; hint = null; undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
+        $('mode').value = saved.mode; $('difficulty').value = saved.difficulty;
+        $('mode').disabled = true; $('difficulty').disabled = true;
+        $('difficulty-wrap').hidden = saved.mode !== 'ai';
+        startedAt = Date.now() - (saved.elapsed || 0);
+        $('result').hidden = true;
+        refresh();
+        if (mode() === 'ai' && state.turn === BLACK) aiTurn();
+        return true;
+    }
+
+    function renderHistory() {
+        const el = $('history');
+        if (!el) return;
+        el.innerHTML = '';
+        for (let i = 0; i < state.log.length; i += 2) {
+            const li = document.createElement('li');
+            li.innerHTML = `<span>${state.log[i]}</span> <span>${state.log[i + 1] || ''}</span>`;
+            el.appendChild(li);
+        }
+        el.scrollTop = el.scrollHeight;
+        $('undo').disabled = !undoStack.length || finished;
+    }
+
+    // ---------- Sound (Web Audio, no files) ----------
+
+    let audioCtx = null;
+    let soundOn = store.get('nq-checkers.sound') !== false;
+    function tone(freq, start, dur, type = 'sine', vol = 0.15) {
+        const t = audioCtx.currentTime + start;
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g).connect(audioCtx.destination); o.start(t); o.stop(t + dur);
+    }
+    function sound(kind) {
+        if (!soundOn) return;
+        try {
+            audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        } catch { return; }
+        switch (kind) {
+            case 'move': tone(420, 0, 0.07, 'triangle', 0.12); tone(300, 0.03, 0.08, 'triangle', 0.08); break;
+            case 'capture': tone(180, 0, 0.15, 'square', 0.08); tone(120, 0.05, 0.2, 'sine', 0.15); break;
+            case 'king': [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.08, 0.18, 'triangle', 0.1)); break;
+            case 'win': [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, i * 0.11, 0.3, 'triangle', 0.12)); break;
+            case 'lose': [392, 330, 262, 196].forEach((f, i) => tone(f, i * 0.16, 0.35, 'sine', 0.12)); break;
+            case 'undo': tone(300, 0, 0.06, 'sine', 0.1); tone(420, 0.05, 0.06, 'sine', 0.1); break;
+        }
+    }
+    function updateSoundBtn() { $('sound').textContent = soundOn ? '🔊' : '🔇'; $('sound').setAttribute('aria-pressed', String(!soundOn)); }
+
     function refresh() {
         legal = finished ? [] : legalMoves(state.board, state.turn);
         render();
         updateStatus();
+        renderHistory();
     }
 
     function updateStatus() {
@@ -263,10 +351,14 @@
     }
 
     function commit(move) {
+        const human = mode() === 'local' || state.turn === RED;
+        if (human) { undoStack.push(snapshot()); if (undoStack.length > 60) undoStack.shift(); }
         const captured = move.captures.map(([r, c]) => ({ r, c, ...state.board[r][c] }));
         const { board, promoted } = applyMove(state.board, move);
         last = { path: move.path, captured, promoted };
         animate = true;
+        state.log.push(move.path.map(sqName).join(move.captures.length ? '×' : '-') + (promoted ? '♛' : ''));
+        sound(promoted ? 'king' : move.captures.length ? 'capture' : 'move');
         if (state.turn === RED) state.redMoves++;
         state.plies++;
         state.quietPlies = move.captures.length || promoted ? 0 : state.quietPlies + 1;
@@ -276,6 +368,7 @@
         $('mode').disabled = true; $('difficulty').disabled = true;
         refresh();
         if (checkEnd()) return;
+        persist();
         if (mode() === 'ai' && state.turn === BLACK) aiTurn();
     }
 
@@ -295,7 +388,11 @@
         if (!winner && !draw) return false;
 
         finished = true;
+        store.del(STORE);
+        renderHistory();
         render();
+        if (mode() === 'ai') sound(draw ? 'move' : winner === RED ? 'win' : 'lose');
+        else if (!draw) sound('win');
         let text;
         if (draw) text = 'Draw — 40 moves each without a capture.';
         else if (mode() === 'ai') text = winner === RED ? 'You win! 🎉' : 'The computer wins.';
@@ -317,6 +414,10 @@
     }
 
     async function saveScore(result) {
+        if (state.undone) {
+            showResult($('result').innerHTML + '<br><small>Practice game (undo used), so it was not saved to your scores.</small>');
+            return;
+        }
         if (!cfg.loggedIn) {
             showResult($('result').innerHTML + '<br><small>Log in to save scores like this one.</small>');
             return;
@@ -387,6 +488,15 @@
     $('tip').textContent = TIPS[tipIdx];
     $('next-tip').addEventListener('click', nextTip);
     $('hint').addEventListener('click', showHint);
+    $('undo').addEventListener('click', undo);
+    $('sound').addEventListener('click', () => { soundOn = !soundOn; store.set('nq-checkers.sound', soundOn); updateSoundBtn(); if (soundOn) sound('move'); });
+    updateSoundBtn();
+    document.addEventListener('keydown', (e) => {
+        if (e.target.closest('input, select, textarea')) return;
+        if ((e.key === 'z' && (e.ctrlKey || e.metaKey)) || e.key === 'u') { e.preventDefault(); undo(); }
+        else if (e.key === 'h') showHint();
+        else if (e.key === 'Escape') { selected = null; partial = null; render(); }
+    });
 
     boardEl.addEventListener('click', onBoardClick);
     $('new-game').addEventListener('click', newGame);
@@ -396,5 +506,5 @@
     });
     $('difficulty').addEventListener('change', newGame);
 
-    newGame();
+    if (!restore()) newGame();
 })();
