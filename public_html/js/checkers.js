@@ -10,7 +10,7 @@
     const $ = (id) => document.getElementById(id);
     const boardEl = $('board');
 
-    let state, selected, partial, legal, busy, startedAt, finished, hint;
+    let state, selected, partial, legal, busy, startedAt, finished, hint, last, animate;
 
     // ---------- Rules engine (pure functions on a board array) ----------
 
@@ -156,7 +156,7 @@
 
     function newGame() {
         state = { board: initialBoard(), turn: RED, redMoves: 0, plies: 0, quietPlies: 0 };
-        selected = null; partial = null; busy = false; finished = false; hint = null;
+        selected = null; partial = null; busy = false; finished = false; hint = null; last = null; animate = false;
         startedAt = Date.now();
         $('result').hidden = true;
         $('mode').disabled = false; $('difficulty').disabled = false;
@@ -190,6 +190,8 @@
         const targets = new Set(cands.filter((m) => m.path.length > partial.length).map((m) => m.path[partial.length].join(',')));
         const humanTurn = !finished && !busy && (mode() === 'local' || state.turn === RED);
 
+        const isAt = (list, r, c) => list.some(([x, y]) => x === r && y === c);
+        const lastFrom = last && last.path[0], lastTo = last && last.path[last.path.length - 1];
         boardEl.innerHTML = '';
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
@@ -198,6 +200,9 @@
                 sq.dataset.r = r; sq.dataset.c = c;
                 const key = `${r},${c}`;
                 if (targets.has(key)) sq.classList.add('target');
+                if (last && (isAt([lastFrom], r, c) || isAt([lastTo], r, c))) sq.classList.add('last');
+                if (c === 0) sq.dataset.rank = 8 - r;
+                if (r === 7) sq.dataset.file = 'abcdefgh'[c];
                 if (hint && hint.path.some(([x, y]) => x === r && y === c)) sq.classList.add(hint.path[0][0] === r && hint.path[0][1] === c ? 'hint-from' : 'hint');
                 if (partial && partial.some(([x, y]) => x === r && y === c)) sq.classList.add('trail');
                 const p = state.board[r][c];
@@ -206,11 +211,25 @@
                     piece.className = `piece ${p.color === RED ? 'red' : 'black'}${p.king ? ' king' : ''}`;
                     if (humanTurn && !partial && movable.has(key)) piece.classList.add('movable');
                     if (selected && selected[0] === r && selected[1] === c) piece.classList.add('selected');
+                    if (animate && last && isAt([lastTo], r, c)) {
+                        piece.classList.add('moving');
+                        piece.style.setProperty('--dx', lastFrom[1] - c);
+                        piece.style.setProperty('--dy', lastFrom[0] - r);
+                        if (last.promoted) piece.classList.add('crowned');
+                    }
                     sq.appendChild(piece);
+                } else if (animate && last) {
+                    const ghost = last.captured.find((g) => g.r === r && g.c === c);
+                    if (ghost) {
+                        const el = document.createElement('div');
+                        el.className = `piece ghost ${ghost.color === RED ? 'red' : 'black'}${ghost.king ? ' king' : ''}`;
+                        sq.appendChild(el);
+                    }
                 }
                 boardEl.appendChild(sq);
             }
         }
+        animate = false;
     }
 
     function onBoardClick(e) {
@@ -244,7 +263,10 @@
     }
 
     function commit(move) {
+        const captured = move.captures.map(([r, c]) => ({ r, c, ...state.board[r][c] }));
         const { board, promoted } = applyMove(state.board, move);
+        last = { path: move.path, captured, promoted };
+        animate = true;
         if (state.turn === RED) state.redMoves++;
         state.plies++;
         state.quietPlies = move.captures.length || promoted ? 0 : state.quietPlies + 1;
@@ -259,12 +281,11 @@
 
     function aiTurn() {
         busy = true;
-        render();
         setTimeout(() => {
             const move = chooseAiMove(state.board, BLACK, difficulty());
             busy = false;
             commit(move);
-        }, 350);
+        }, 550);
     }
 
     function checkEnd() {
